@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weour-api
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: mongodb://host.docker.internal:27017/weour_matrimony
