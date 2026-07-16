@@ -1,28 +1,51 @@
-import { createApp } from './app';
-import { connectDatabase } from '@config/db';
-import { env } from '@config/env';
-import { logger } from '@config/logger';
+import { App } from "@/app";
 
-async function bootstrap(): Promise<void> {
-  await connectDatabase();
+import { ValidateEnv } from "@utils/validateEnv";
+import { disconnect } from "mongoose";
+import { AuthRoute } from "./routes/auth.routes";
 
-  const app = createApp();
+ValidateEnv();
 
-  const server = app.listen(env.PORT, () => {
-    logger.info(`WeOur Matrimony API listening on port ${env.PORT} (${env.NODE_ENV})`);
-    logger.info(`Swagger docs: http://localhost:${env.PORT}/api-docs`);
-  });
+const RouteClasses = [AuthRoute];
 
-  const shutdown = (signal: string) => {
-    logger.info(`${signal} received, shutting down gracefully`);
-    server.close(() => process.exit(0));
-  };
+const Routes = RouteClasses.map((RouteClass) => new RouteClass());
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-}
+const app = new App();
+let shuttingDown = false;
 
-bootstrap().catch((err) => {
-  logger.error('Failed to start server', err);
-  process.exit(1);
+const shutdown = async (signal: string) => {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+
+  try {
+    await app.close();
+    await disconnect();
+    console.log(`[${signal}] Server closed cleanly`);
+    process.exit(0);
+  } catch (error) {
+    console.log(`[${signal}] Error while closing server`);
+    console.log(error);
+    process.exit(1);
+  }
+};
+
+process.once("SIGINT", () => {
+  void shutdown("SIGINT");
 });
+
+process.once("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
+
+app
+  .init(Routes)
+  .then(() => {
+    app.listen();
+  })
+  .catch((error) => {
+    console.log("Error in starting server");
+    console.log(error);
+  });

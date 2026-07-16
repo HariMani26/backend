@@ -1,72 +1,83 @@
-import { Request, Response } from 'express';
+import { Request, Response } from "express";
 
-import { sendSuccess } from '@helpers/apiResponse';
-import { userRepository } from '@repositories/user.repository';
-import { authService } from '@services/auth.service';
-import { RequestMeta } from '@services/token.service';
-import { ApiError } from '@utils/ApiError';
-import { asyncHandler } from '@utils/asyncHandler';
-import { toPublicUser } from '@utils/serializers';
+import { sendSuccess } from "@helpers/apiResponse";
+
+import { RequestMeta } from "@services/token.service";
+
+import { toPublicUser } from "@utils/serializers";
+import { Container } from "typedi";
+import { AuthService } from "@/services/auth.service";
 
 function requestMeta(req: Request): RequestMeta {
-  return { userAgent: req.headers['user-agent'], ip: req.ip };
+  return { userAgent: req.headers["user-agent"], ip: req.ip };
 }
 
-export const authController = {
-  requestOtp: asyncHandler(async (req: Request, res: Response) => {
-    await authService.requestOtp(req.body.mobile);
-    sendSuccess(res, null, 'OTP sent successfully');
-  }),
+export class AuthController {
+  private authService = Container.get(AuthService);
 
-  verifyOtp: asyncHandler(async (req: Request, res: Response) => {
-    const { user, tokens, isNewUser } = await authService.verifyOtpAndAuthenticate(req.body.mobile, req.body.code, requestMeta(req));
+  public requestOtp = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.requestOtp(req.body.mobile);
+    sendSuccess(res, null, "OTP sent successfully");
+  };
+
+  public verifyOtp = async (req: Request, res: Response): Promise<void> => {
+    const { user, tokens, isNewUser } =
+      await this.authService.verifyOtpAndAuthenticate(
+        req.body.mobile,
+        req.body.code,
+        requestMeta(req),
+      );
     sendSuccess(
       res,
       { user: toPublicUser(user), ...tokens, isNewUser },
-      isNewUser ? 'Registered and logged in successfully' : 'Logged in successfully',
+      isNewUser
+        ? "Registered and logged in successfully"
+        : "Logged in successfully",
     );
-  }),
+  };
 
-  refresh: asyncHandler(async (req: Request, res: Response) => {
-    const { tokens, user } = await authService.refresh(req.body.refreshToken, requestMeta(req));
-    sendSuccess(res, { user: toPublicUser(user), ...tokens }, 'Token refreshed');
-  }),
+  public refresh = async (req: Request, res: Response): Promise<void> => {
+    const { tokens, user } = await this.authService.refresh(
+      req.body.refreshToken,
+      requestMeta(req),
+    );
+    sendSuccess(
+      res,
+      { user: toPublicUser(user), ...tokens },
+      "Token refreshed",
+    );
+  };
 
-  logout: asyncHandler(async (req: Request, res: Response) => {
-    await authService.logout(req.body.refreshToken);
-    sendSuccess(res, null, 'Logged out successfully');
-  }),
+  public logout = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.logout(req.body.refreshToken);
+    sendSuccess(res, null, "Logged out successfully");
+  };
 
-  adminLogin: asyncHandler(async (req: Request, res: Response) => {
-    const { user, tokens } = await authService.adminLogin(req.body.email, req.body.password, requestMeta(req));
-    sendSuccess(res, { user: toPublicUser(user), ...tokens }, 'Logged in successfully');
-  }),
+  public adminLogin = async (req: Request, res: Response): Promise<void> => {
+    const { user, tokens } = await this.authService.adminLogin(
+      req.body.email,
+      req.body.password,
+      requestMeta(req),
+    );
+    sendSuccess(
+      res,
+      { user: toPublicUser(user), ...tokens },
+      "Logged in successfully",
+    );
+  };
 
-  forgotPassword: asyncHandler(async (req: Request, res: Response) => {
-    await authService.forgotPassword(req.body.email);
-    sendSuccess(res, null, 'If an account exists for that email, a reset link has been sent');
-  }),
+  public forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.forgotPassword(req.body.email);
+    sendSuccess(
+      res,
+      null,
+      "If an account exists for that email, a reset link has been sent",
+    );
+  };
 
-  resetPassword: asyncHandler(async (req: Request, res: Response) => {
-    await authService.resetPassword(req.body.token, req.body.newPassword);
-    sendSuccess(res, null, 'Password reset successfully. Please log in again.');
-  }),
+  public resetPassword = async (req: Request, res: Response): Promise<void> => {
+    await this.authService.resetPassword(req.body.token, req.body.newPassword);
+    sendSuccess(res, null, "Password reset successfully. Please log in again.");
+  };
+}
 
-  googleLogin: asyncHandler(async (req: Request, res: Response) => {
-    const { user, tokens } = await authService.googleLogin(req.body.idToken, requestMeta(req));
-    sendSuccess(res, { user: toPublicUser(user), ...tokens }, 'Logged in successfully');
-  }),
-
-  appleLogin: asyncHandler(async (req: Request, res: Response) => {
-    const { user, tokens } = await authService.appleLogin(req.body.idToken, requestMeta(req));
-    sendSuccess(res, { user: toPublicUser(user), ...tokens }, 'Logged in successfully');
-  }),
-
-  me: asyncHandler(async (req: Request, res: Response) => {
-    const user = await userRepository.findById(req.user!.id);
-    if (!user) {
-      throw ApiError.notFound('User not found');
-    }
-    sendSuccess(res, toPublicUser(user), 'Current user');
-  }),
-};

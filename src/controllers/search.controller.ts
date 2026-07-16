@@ -1,22 +1,24 @@
-import { Request, Response } from 'express';
+import { Request, Response } from "express";
 
-import { SearchQuery } from '@dto/search.dto';
-import { sendSuccess } from '@helpers/apiResponse';
-import { Gender } from '@models/Profile.model';
-import { profileRepository } from '@repositories/profile.repository';
-import { searchService } from '@services/search.service';
-import { asyncHandler } from '@utils/asyncHandler';
+import { SearchQuery } from "@dto/search.dto";
+import { sendSuccess } from "@helpers/apiResponse";
+import { Gender } from "@models/Profile.model";
+import { profileService } from "@services/profile.service";
+import { searchService } from "@services/search.service";
+import { asyncHandler } from "@utils/asyncHandler";
 
 function oppositeGender(gender: Gender): Gender {
-  return gender === 'male' ? 'female' : 'male';
+  return gender === "male" ? "female" : "male";
 }
 
 export const searchController = {
   search: asyncHandler(async (req: Request, res: Response) => {
     const query = req.query as unknown as SearchQuery;
-    const viewerProfile = await profileRepository.findByUserId(req.user!.id);
+    const viewerProfile = await profileService.findByUserId(req.user!.id);
 
-    const gender = query.gender ?? (viewerProfile ? oppositeGender(viewerProfile.gender) : undefined);
+    const gender =
+      query.gender ??
+      (viewerProfile ? oppositeGender(viewerProfile.gender) : undefined);
 
     const result = await searchService.search(
       {
@@ -33,6 +35,6 @@ export const searchController = {
       query.limit,
     );
 
-    sendSuccess(res, result, 'Search results');
+    sendSuccess(res, result, "Search results");
   }),
 };

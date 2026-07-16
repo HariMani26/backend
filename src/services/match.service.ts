@@ -1,20 +1,25 @@
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument } from "mongoose";
 
-import { Gender, IProfile } from '@models/Profile.model';
-import { partnerPreferenceRepository } from '@repositories/partnerPreference.repository';
-import { profileRepository } from '@repositories/profile.repository';
-import { MatchPreference, MatchScore, MatchSubject, matchingService } from '@services/matching.service';
-import { ProfileSummary, toProfileSummary } from '@utils/serializers';
-import { ApiError } from '@utils/ApiError';
-import { calculateAge } from '@utils/age';
-import { resolvePrimaryPhotoUrls } from '@utils/profilePhotoUrls';
+import { Gender, IProfile } from "@models/Profile.model";
+import {
+    MatchPreference,
+    MatchScore,
+    MatchSubject,
+    matchingService,
+} from "@services/matching.service";
+import { partnerPreferenceService } from "@services/partnerPreference.service";
+import { profileService } from "@services/profile.service";
+import { ApiError } from "@utils/ApiError";
+import { calculateAge } from "@utils/age";
+import { resolvePrimaryPhotoUrls } from "@utils/profilePhotoUrls";
+import { ProfileSummary, toProfileSummary } from "@utils/serializers";
 
 const CANDIDATE_POOL_CAP = 200;
 const DEFAULT_TOP_MATCHES_LIMIT = 10;
 const MAX_TOP_MATCHES_LIMIT = 30;
 
 function oppositeGender(gender: Gender): Gender {
-  return gender === 'male' ? 'female' : 'male';
+  return gender === "male" ? "female" : "male";
 }
 
 function toMatchSubject(profile: HydratedDocument<IProfile>): MatchSubject {
@@ -30,13 +35,19 @@ function toMatchSubject(profile: HydratedDocument<IProfile>): MatchSubject {
   };
 }
 
-async function loadViewerContext(viewerUserId: string): Promise<{ viewerProfile: HydratedDocument<IProfile>; preference?: MatchPreference }> {
-  const viewerProfile = await profileRepository.findByUserId(viewerUserId);
+async function loadViewerContext(
+  viewerUserId: string,
+): Promise<{
+  viewerProfile: HydratedDocument<IProfile>;
+  preference?: MatchPreference;
+}> {
+  const viewerProfile = await profileService.findByUserId(viewerUserId);
   if (!viewerProfile) {
-    throw ApiError.notFound('Complete registration before viewing matches');
+    throw ApiError.notFound("Complete registration before viewing matches");
   }
 
-  const preferenceDoc = await partnerPreferenceRepository.findByUserId(viewerUserId);
+  const preferenceDoc =
+    await partnerPreferenceService.findByUserId(viewerUserId);
   const preference: MatchPreference | undefined = preferenceDoc
     ? {
         ageMin: preferenceDoc.ageMin,
@@ -52,14 +63,20 @@ async function loadViewerContext(viewerUserId: string): Promise<{ viewerProfile:
 }
 
 export const matchService = {
-  async topMatches(viewerUserId: string, limit = DEFAULT_TOP_MATCHES_LIMIT): Promise<Array<ProfileSummary & { matchScore: MatchScore }>> {
+  async topMatches(
+    viewerUserId: string,
+    limit = DEFAULT_TOP_MATCHES_LIMIT,
+  ): Promise<Array<ProfileSummary & { matchScore: MatchScore }>> {
     const cappedLimit = Math.min(Math.max(limit, 1), MAX_TOP_MATCHES_LIMIT);
     const { viewerProfile, preference } = await loadViewerContext(viewerUserId);
 
     const [matrix, candidates] = await Promise.all([
       matchingService.loadMatrix(),
-      profileRepository.findCandidates(
-        { excludeUserId: viewerUserId, gender: oppositeGender(viewerProfile.gender) },
+      profileService.findCandidates(
+        {
+          excludeUserId: viewerUserId,
+          gender: oppositeGender(viewerProfile.gender),
+        },
         CANDIDATE_POOL_CAP,
       ),
     ]);
@@ -69,23 +86,38 @@ export const matchService = {
 
     return candidates
       .map((candidate) => {
-        const matchScore = matchingService.score(subject, toMatchSubject(candidate), matrix, preference);
-        const photoUrl = candidate.primaryPhotoId ? photoUrlByFileId.get(String(candidate.primaryPhotoId)) : undefined;
+        const matchScore = matchingService.score(
+          subject,
+          toMatchSubject(candidate),
+          matrix,
+          preference,
+        );
+        const photoUrl = candidate.primaryPhotoId
+          ? photoUrlByFileId.get(String(candidate.primaryPhotoId))
+          : undefined;
         return { ...toProfileSummary(candidate, photoUrl), matchScore };
       })
       .sort((a, b) => b.matchScore.totalScore - a.matchScore.totalScore)
       .slice(0, cappedLimit);
   },
 
-  async scoreAgainst(viewerUserId: string, targetProfileId: string): Promise<MatchScore> {
+  async scoreAgainst(
+    viewerUserId: string,
+    targetProfileId: string,
+  ): Promise<MatchScore> {
     const { viewerProfile, preference } = await loadViewerContext(viewerUserId);
 
-    const targetProfile = await profileRepository.findById(targetProfileId);
+    const targetProfile = await profileService.findById(targetProfileId);
     if (!targetProfile) {
-      throw ApiError.notFound('Profile not found');
+      throw ApiError.notFound("Profile not found");
     }
 
     const matrix = await matchingService.loadMatrix();
-    return matchingService.score(toMatchSubject(viewerProfile), toMatchSubject(targetProfile), matrix, preference);
+    return matchingService.score(
+      toMatchSubject(viewerProfile),
+      toMatchSubject(targetProfile),
+      matrix,
+      preference,
+    );
   },
 };

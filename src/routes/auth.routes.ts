@@ -1,180 +1,74 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { authController } from '@controllers/auth.controller';
-import { authenticate } from '@middlewares/authenticate';
-import { authRateLimiter } from '@middlewares/rateLimiter';
+import { AuthController } from "@/controllers/auth.controller";
+import { Routes } from "@/interfaces/routes.interface";
+import { authRateLimiter } from "@middlewares/rateLimiter";
+import { asyncHandler } from "@utils/asyncHandler";
 import {
   validateAdminLogin,
   validateForgotPassword,
-  validateOAuthLogin,
   validateRefreshToken,
   validateRequestOtp,
   validateResetPassword,
   validateVerifyOtp,
-} from '@validators/auth.validator';
+} from "@validators/auth.validator";
 
-export const authRouter = Router();
+export class AuthRoute implements Routes {
+  public path = "/auth";
+  public router = Router();
+  public auth = new AuthController();
 
-/**
- * @openapi
- * /auth/otp/request:
- *   post:
- *     summary: Send a one-time password to a mobile number (used for both registration and login)
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/RequestOtpDto' }
- *     responses:
- *       200: { description: OTP sent }
- */
-authRouter.post('/otp/request', authRateLimiter, validateRequestOtp, authController.requestOtp);
+  constructor() {
+    this.initializeRoutes();
+  }
+  private initializeRoutes() {
+    this.router.post(
+      "/otp/request",
+      authRateLimiter,
+      validateRequestOtp,
+      asyncHandler(this.auth.requestOtp),
+    );
 
-/**
- * @openapi
- * /auth/otp/verify:
- *   post:
- *     summary: Verify an OTP — creates the account on first success, logs in otherwise
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/VerifyOtpDto' }
- *     responses:
- *       200: { description: Authenticated }
- */
-authRouter.post('/otp/verify', authRateLimiter, validateVerifyOtp, authController.verifyOtp);
+    this.router.post(
+      "/otp/verify",
+      authRateLimiter,
+      validateVerifyOtp,
+      asyncHandler(this.auth.verifyOtp),
+    );
 
-/**
- * @openapi
- * /auth/refresh:
- *   post:
- *     summary: Exchange a refresh token for a new access/refresh token pair
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/RefreshTokenDto' }
- *     responses:
- *       200: { description: Token refreshed }
- */
-authRouter.post('/refresh', validateRefreshToken, authController.refresh);
+    this.router.post(
+      "/refresh",
+      validateRefreshToken,
+      asyncHandler(this.auth.refresh),
+    );
 
-/**
- * @openapi
- * /auth/logout:
- *   post:
- *     summary: Revoke a refresh token
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/RefreshTokenDto' }
- *     responses:
- *       200: { description: Logged out }
- */
-authRouter.post('/logout', validateRefreshToken, authController.logout);
+    this.router.post(
+      "/logout",
+      validateRefreshToken,
+      asyncHandler(this.auth.logout),
+    );
 
-/**
- * @openapi
- * /auth/admin/login:
- *   post:
- *     summary: Email/password login for admin and super-admin accounts
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/AdminLoginDto' }
- *     responses:
- *       200: { description: Authenticated }
- */
-authRouter.post('/admin/login', authRateLimiter, validateAdminLogin, authController.adminLogin);
+    this.router.post(
+      "/admin/login",
+      authRateLimiter,
+      validateAdminLogin,
+      asyncHandler(this.auth.adminLogin),
+    );
 
-/**
- * @openapi
- * /auth/forgot-password:
- *   post:
- *     summary: Request a password reset email (admin accounts only)
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/ForgotPasswordDto' }
- *     responses:
- *       200: { description: Generic confirmation, regardless of whether the email exists }
- */
-authRouter.post('/forgot-password', authRateLimiter, validateForgotPassword, authController.forgotPassword);
+    this.router.post(
+      "/forgot-password",
+      authRateLimiter,
+      validateForgotPassword,
+      asyncHandler(this.auth.forgotPassword),
+    );
 
-/**
- * @openapi
- * /auth/reset-password:
- *   post:
- *     summary: Reset a password using the token emailed by /forgot-password
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/ResetPasswordDto' }
- *     responses:
- *       200: { description: Password reset }
- */
-authRouter.post('/reset-password', authRateLimiter, validateResetPassword, authController.resetPassword);
+    this.router.post(
+      "/reset-password",
+      authRateLimiter,
+      validateResetPassword,
+      asyncHandler(this.auth.resetPassword),
+    );
+  }
+}
 
-/**
- * @openapi
- * /auth/google:
- *   post:
- *     summary: Sign in with a verified Google ID token (links to an existing mobile-registered account)
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/OAuthLoginDto' }
- *     responses:
- *       200: { description: Authenticated }
- */
-authRouter.post('/google', authRateLimiter, validateOAuthLogin, authController.googleLogin);
-
-/**
- * @openapi
- * /auth/apple:
- *   post:
- *     summary: Sign in with a verified Apple ID token (links to an existing mobile-registered account)
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema: { $ref: '#/components/schemas/OAuthLoginDto' }
- *     responses:
- *       200: { description: Authenticated }
- */
-authRouter.post('/apple', authRateLimiter, validateOAuthLogin, authController.appleLogin);
-
-/**
- * @openapi
- * /auth/me:
- *   get:
- *     summary: Get the currently authenticated user
- *     tags: [Auth]
- *     responses:
- *       200: { description: Current user }
- */
-authRouter.get('/me', authenticate, authController.me);
+export const authRouter = new AuthRoute().router;

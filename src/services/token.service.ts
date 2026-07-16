@@ -2,8 +2,8 @@ import crypto from 'crypto';
 
 import jwt from 'jsonwebtoken';
 
+import { RefreshTokenModel } from '@models/RefreshToken.model';
 import type { UserRole } from '@models/User.model';
-import { refreshTokenRepository } from '@repositories/refreshToken.repository';
 import { ApiError } from '@utils/ApiError';
 import { sha256Hex } from '@utils/hash';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '@utils/jwt';
@@ -38,7 +38,7 @@ export const tokenService = {
     const accessToken = signAccessToken({ sub: userId, role });
     const refreshToken = signRefreshToken({ sub: userId, family });
 
-    await refreshTokenRepository.create({
+    await RefreshTokenModel.create({
       userId,
       tokenHash: sha256Hex(refreshToken),
       family,
@@ -67,17 +67,24 @@ export const tokenService = {
     }
 
     const presentedHash = sha256Hex(rawRefreshToken);
-    const stored = await refreshTokenRepository.findActiveByTokenHash(presentedHash);
+    const stored = await RefreshTokenModel.findOne({
+      tokenHash: presentedHash,
+      revokedAt: { $exists: false },
+      expiresAt: { $gt: new Date() },
+    });
 
     if (!stored) {
-      await refreshTokenRepository.revokeFamily(payload.family);
+      await RefreshTokenModel.updateMany(
+        { family: payload.family, revokedAt: { $exists: false } },
+        { $set: { revokedAt: new Date() } },
+      );
       throw ApiError.unauthorized('Refresh token has already been used or revoked');
     }
 
     const newRefreshToken = signRefreshToken({ sub: payload.sub, family: payload.family });
     const newHash = sha256Hex(newRefreshToken);
 
-    await refreshTokenRepository.create({
+    await RefreshTokenModel.create({
       userId: payload.sub,
       tokenHash: newHash,
       family: payload.family,
@@ -85,7 +92,7 @@ export const tokenService = {
       userAgent: meta.userAgent,
       ip: meta.ip,
     });
-    await refreshTokenRepository.revoke(String(stored._id), newHash);
+    await RefreshTokenModel.findByIdAndUpdate(stored._id, { $set: { revokedAt: new Date(), replacedByTokenHash: newHash } });
 
     return { userId: payload.sub, refreshToken: newRefreshToken };
   },
@@ -95,13 +102,13 @@ export const tokenService = {
   },
 
   async revokeRefreshToken(rawRefreshToken: string): Promise<void> {
-    const stored = await refreshTokenRepository.findActiveByTokenHash(sha256Hex(rawRefreshToken));
+    const stored = await RefreshTokenModel.findOne({ tokenHash: sha256Hex(rawRefreshToken), revokedAt: { $exists: false } });
     if (stored) {
-      await refreshTokenRepository.revoke(String(stored._id));
+      await RefreshTokenModel.findByIdAndUpdate(stored._id, { $set: { revokedAt: new Date() } });
     }
   },
 
   revokeAllForUser(userId: string): Promise<unknown> {
-    return refreshTokenRepository.revokeAllForUser(userId);
+    return RefreshTokenModel.updateMany({ userId, revokedAt: { $exists: false } }, { $set: { revokedAt: new Date() } });
   },
 };

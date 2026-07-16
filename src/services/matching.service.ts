@@ -1,6 +1,6 @@
-import { IKulamCompatibility } from '@models/KulamCompatibility.model';
-import { Gender } from '@models/Profile.model';
-import { kulamCompatibilityRepository } from '@repositories/kulamCompatibility.repository';
+import { IKulamCompatibility } from "@models/KulamCompatibility.model";
+import { Gender } from "@models/Profile.model";
+import { kulamCompatibilityService } from "@services/kulamCompatibility.service";
 
 /**
  * Multi-factor compatibility scoring, ported from the Figma reference's
@@ -45,7 +45,8 @@ export interface MatchBreakdown {
   heightScore: number;
 }
 
-export type CompatibilityTier = 'excellent' | 'very-good' | 'good' | 'average' | 'low';
+export type CompatibilityTier =
+  "excellent" | "very-good" | "good" | "average" | "low";
 
 export interface MatchScore {
   totalScore: number;
@@ -56,7 +57,11 @@ export interface MatchScore {
 
 export type KulamCompatibilityMatrix = Map<string, IKulamCompatibility>;
 
-function calculateKulamScore(subjectKulam: string, targetKulam: string, matrix: KulamCompatibilityMatrix): number {
+function calculateKulamScore(
+  subjectKulam: string,
+  targetKulam: string,
+  matrix: KulamCompatibilityMatrix,
+): number {
   const rules = matrix.get(subjectKulam.toLowerCase());
   if (!rules) {
     return 50; // Unknown kulam (e.g. "other") — neutral default, matches the reference's fallback.
@@ -70,7 +75,11 @@ function calculateKulamScore(subjectKulam: string, targetKulam: string, matrix: 
   return 50;
 }
 
-function calculateAgeScore(subject: MatchSubject, target: MatchSubject, preference?: MatchPreference): number {
+function calculateAgeScore(
+  subject: MatchSubject,
+  target: MatchSubject,
+  preference?: MatchPreference,
+): number {
   const ageDiff = Math.abs(subject.age - target.age);
 
   if (preference?.ageMin && target.age < preference.ageMin) {
@@ -81,14 +90,14 @@ function calculateAgeScore(subject: MatchSubject, target: MatchSubject, preferen
   }
 
   // Traditional preference: groom slightly older than bride.
-  if (subject.gender === 'male' && target.gender === 'female') {
+  if (subject.gender === "male" && target.gender === "female") {
     if (ageDiff <= 3) return 100;
     if (ageDiff <= 5) return 90;
     if (ageDiff <= 7) return 75;
     if (ageDiff <= 10) return 60;
     return Math.max(0, 60 - (ageDiff - 10) * 5);
   }
-  if (subject.gender === 'female' && target.gender === 'male') {
+  if (subject.gender === "female" && target.gender === "male") {
     if (target.age >= subject.age && ageDiff <= 5) return 100;
     if (target.age >= subject.age && ageDiff <= 8) return 85;
     if (ageDiff <= 3) return 90;
@@ -102,8 +111,14 @@ function calculateAgeScore(subject: MatchSubject, target: MatchSubject, preferen
   return Math.max(0, 60 - (ageDiff - 10) * 4);
 }
 
-function calculateLocationScore(subject: MatchSubject, target: MatchSubject, preference?: MatchPreference): number {
-  const subjectLocation = (subject.currentCity || subject.district).toLowerCase();
+function calculateLocationScore(
+  subject: MatchSubject,
+  target: MatchSubject,
+  preference?: MatchPreference,
+): number {
+  const subjectLocation = (
+    subject.currentCity || subject.district
+  ).toLowerCase();
   const targetLocation = (target.currentCity || target.district).toLowerCase();
 
   if (subjectLocation === targetLocation) {
@@ -116,7 +131,11 @@ function calculateLocationScore(subject: MatchSubject, target: MatchSubject, pre
   const preferred = preference?.preferredDistricts ?? [];
   const matchesPreferred = preferred.some((district) => {
     const needle = district.toLowerCase();
-    return targetLocation.includes(needle) || target.district.toLowerCase().includes(needle) || target.state.toLowerCase().includes(needle);
+    return (
+      targetLocation.includes(needle) ||
+      target.district.toLowerCase().includes(needle) ||
+      target.state.toLowerCase().includes(needle)
+    );
   });
   if (matchesPreferred) {
     return 70;
@@ -125,7 +144,11 @@ function calculateLocationScore(subject: MatchSubject, target: MatchSubject, pre
   return 40;
 }
 
-function calculateEducationScore(subject: MatchSubject, target: MatchSubject, preference?: MatchPreference): number {
+function calculateEducationScore(
+  subject: MatchSubject,
+  target: MatchSubject,
+  preference?: MatchPreference,
+): number {
   const subjectEducation = subject.education.trim().toLowerCase();
   const targetEducation = target.education.trim().toLowerCase();
 
@@ -134,34 +157,50 @@ function calculateEducationScore(subject: MatchSubject, target: MatchSubject, pr
   }
 
   const preferred = preference?.preferredEducation ?? [];
-  if (preferred.some((p) => targetEducation.includes(p.toLowerCase()) || p.toLowerCase().includes(targetEducation))) {
+  if (
+    preferred.some(
+      (p) =>
+        targetEducation.includes(p.toLowerCase()) ||
+        p.toLowerCase().includes(targetEducation),
+    )
+  ) {
     return 85;
   }
-  if (subjectEducation.includes(targetEducation) || targetEducation.includes(subjectEducation)) {
+  if (
+    subjectEducation.includes(targetEducation) ||
+    targetEducation.includes(subjectEducation)
+  ) {
     return 80;
   }
   return 60;
 }
 
-function calculateHeightScore(subject: MatchSubject, target: MatchSubject, preference?: MatchPreference): number {
+function calculateHeightScore(
+  subject: MatchSubject,
+  target: MatchSubject,
+  preference?: MatchPreference,
+): number {
   if (preference?.heightMinCm || preference?.heightMaxCm) {
     const min = preference.heightMinCm ?? 0;
     const max = preference.heightMaxCm ?? 300;
     if (target.heightCm < min || target.heightCm > max) {
-      const deviationCm = Math.min(Math.abs(target.heightCm - min), Math.abs(target.heightCm - max));
+      const deviationCm = Math.min(
+        Math.abs(target.heightCm - min),
+        Math.abs(target.heightCm - max),
+      );
       return Math.max(0, 100 - deviationCm * 4);
     }
   }
 
   // Traditional preference: groom taller than bride.
-  if (subject.gender === 'male' && target.gender === 'female') {
+  if (subject.gender === "male" && target.gender === "female") {
     const diff = subject.heightCm - target.heightCm;
     if (diff >= 5) return 100;
     if (diff >= 0) return 90;
     if (diff >= -5) return 75;
     return Math.max(40, 75 - Math.abs(diff + 5) * 4);
   }
-  if (subject.gender === 'female' && target.gender === 'male') {
+  if (subject.gender === "female" && target.gender === "male") {
     const diff = target.heightCm - subject.heightCm;
     if (diff >= 5) return 100;
     if (diff >= 0) return 90;
@@ -177,42 +216,46 @@ function calculateHeightScore(subject: MatchSubject, target: MatchSubject, prefe
 }
 
 function tierFromScore(totalScore: number): CompatibilityTier {
-  if (totalScore >= 85) return 'excellent';
-  if (totalScore >= 70) return 'very-good';
-  if (totalScore >= 55) return 'good';
-  if (totalScore >= 40) return 'average';
-  return 'low';
+  if (totalScore >= 85) return "excellent";
+  if (totalScore >= 70) return "very-good";
+  if (totalScore >= 55) return "good";
+  if (totalScore >= 40) return "average";
+  return "low";
 }
 
-function buildReasons(breakdown: MatchBreakdown, locationSameCity: boolean, locationSameState: boolean): string[] {
+function buildReasons(
+  breakdown: MatchBreakdown,
+  locationSameCity: boolean,
+  locationSameState: boolean,
+): string[] {
   const reasons: string[] = [];
 
   if (breakdown.kulamScore >= 90) {
-    reasons.push('Excellent Kulam compatibility — traditional heritage match');
+    reasons.push("Excellent Kulam compatibility — traditional heritage match");
   } else if (breakdown.kulamScore >= 70) {
-    reasons.push('Good Kulam compatibility');
+    reasons.push("Good Kulam compatibility");
   } else if (breakdown.kulamScore <= 30) {
-    reasons.push('Kulam compatibility may need consideration');
+    reasons.push("Kulam compatibility may need consideration");
   }
 
   if (breakdown.ageScore >= 90) {
-    reasons.push('Great age match');
+    reasons.push("Great age match");
   } else if (breakdown.ageScore >= 70) {
-    reasons.push('Age within a compatible range');
+    reasons.push("Age within a compatible range");
   }
 
   if (locationSameCity) {
-    reasons.push('Same city — easy to meet');
+    reasons.push("Same city — easy to meet");
   } else if (locationSameState) {
-    reasons.push('Same state — relatively close');
+    reasons.push("Same state — relatively close");
   }
 
   if (breakdown.educationScore >= 90) {
-    reasons.push('Similar educational background');
+    reasons.push("Similar educational background");
   }
 
   if (breakdown.heightScore >= 90) {
-    reasons.push('Height preferences aligned');
+    reasons.push("Height preferences aligned");
   }
 
   return reasons;
@@ -221,11 +264,16 @@ function buildReasons(breakdown: MatchBreakdown, locationSameCity: boolean, loca
 export const matchingService = {
   /** Loads the full compatibility matrix once — pass the result into `score()`/`rank()` for a batch of comparisons. */
   async loadMatrix(): Promise<KulamCompatibilityMatrix> {
-    const rows = await kulamCompatibilityRepository.findAll();
+    const rows = await kulamCompatibilityService.findAll();
     return new Map(rows.map((row) => [row.kulam, row]));
   },
 
-  score(subject: MatchSubject, target: MatchSubject, matrix: KulamCompatibilityMatrix, preference?: MatchPreference): MatchScore {
+  score(
+    subject: MatchSubject,
+    target: MatchSubject,
+    matrix: KulamCompatibilityMatrix,
+    preference?: MatchPreference,
+  ): MatchScore {
     const breakdown: MatchBreakdown = {
       kulamScore: calculateKulamScore(subject.kulam, target.kulam, matrix),
       ageScore: calculateAgeScore(subject, target, preference),
@@ -242,13 +290,21 @@ export const matchingService = {
         breakdown.heightScore * 0.1,
     );
 
-    const subjectLocation = (subject.currentCity || subject.district).toLowerCase();
-    const targetLocation = (target.currentCity || target.district).toLowerCase();
+    const subjectLocation = (
+      subject.currentCity || subject.district
+    ).toLowerCase();
+    const targetLocation = (
+      target.currentCity || target.district
+    ).toLowerCase();
 
     return {
       totalScore,
       breakdown,
-      reasons: buildReasons(breakdown, subjectLocation === targetLocation, subject.state.toLowerCase() === target.state.toLowerCase()),
+      reasons: buildReasons(
+        breakdown,
+        subjectLocation === targetLocation,
+        subject.state.toLowerCase() === target.state.toLowerCase(),
+      ),
       compatibility: tierFromScore(totalScore),
     };
   },

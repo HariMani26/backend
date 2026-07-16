@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-import { env } from '@config/env';
+import { OTP_LENGTH } from '@config';
+
+const otpLength = Number(OTP_LENGTH) || 6;
 
 const mobileSchema = z
   .string()
@@ -12,7 +14,7 @@ const otpCodeSchema = z
   .string()
   .trim()
   .regex(/^\d+$/, 'OTP must be numeric')
-  .refine((value) => value.length === env.OTP_LENGTH, { message: `OTP must be ${env.OTP_LENGTH} digits` });
+  .refine((value) => value.length === otpLength, { message: `OTP must be ${otpLength} digits` });
 
 /**
  * @openapi
