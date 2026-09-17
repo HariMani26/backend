@@ -24,6 +24,7 @@
     "deploy:dev": "pm2 start ecosystem.config.js --only dev"
   },
   "dependencies": {
+    "@azure/identity": "^4.13.3",
     "@azure/storage-blob": "^12.33.0",
     "@httpx/exception": "^3.1.12",
     "bcryptjs": "^3.0.3",

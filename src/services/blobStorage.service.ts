@@ -5,11 +5,17 @@ import {
   AZURE_CONTAINER_DOCUMENTS,
   AZURE_CONTAINER_HOROSCOPE,
   AZURE_STORAGE_CONNECTION_STRING,
+  AZURE_STORAGE_ACCOUNT_NAME,
+  AZURE_STORAGE_CONTAINER_NAME,
+  AZURE_STORAGE_CONTAINER_PHOTOS,
+  AZURE_STORAGE_CONTAINER_FILES,
 } from "@/config";
+import { DefaultAzureCredential } from "@azure/identity";
 import {
   BlobSASPermissions,
   BlobServiceClient,
   ContainerClient,
+  generateBlobSASQueryParameters,
 } from "@azure/storage-blob";
 import sharp from "sharp";
 
@@ -38,6 +44,25 @@ const CONTAINER_NAMES: Record<BlobContainerKey, string> = {
   temp: AZURE_CONTAINER_TEMP || "temp",
 };
 
+// Photos live in one private container, non-image files in another.
+const PHOTO_KEYS = new Set<BlobContainerKey>([
+  "profile-images",
+  "gallery",
+  "horoscope",
+  "chat-images",
+]);
+const FILE_KEYS = new Set<BlobContainerKey>(["documents", "temp"]);
+
+function resolveContainerName(key: BlobContainerKey): string {
+  if (PHOTO_KEYS.has(key) && AZURE_STORAGE_CONTAINER_PHOTOS) {
+    return AZURE_STORAGE_CONTAINER_PHOTOS;
+  }
+  if (FILE_KEYS.has(key) && AZURE_STORAGE_CONTAINER_FILES) {
+    return AZURE_STORAGE_CONTAINER_FILES;
+  }
+  return AZURE_STORAGE_CONTAINER_NAME || CONTAINER_NAMES[key];
+}
+
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -59,14 +84,24 @@ const MAX_SIZE_BYTES: Partial<Record<BlobContainerKey, number>> = {
 let cachedServiceClient: BlobServiceClient | null = null;
 
 function getServiceClient(): BlobServiceClient {
-  if (!AZURE_STORAGE_CONNECTION_STRING) {
-    throw ApiError.internal(
-      "Azure Blob Storage is not configured (AZURE_STORAGE_CONNECTION_STRING is empty)",
-    );
+  if (cachedServiceClient) {
+    return cachedServiceClient;
   }
-  if (!cachedServiceClient) {
+  if (AZURE_STORAGE_ACCOUNT_NAME) {
+    if (!/^[a-z0-9]{3,24}$/.test(AZURE_STORAGE_ACCOUNT_NAME)) {
+      throw ApiError.internal("AZURE_STORAGE_ACCOUNT_NAME must be a valid Azure storage account name");
+    }
+    cachedServiceClient = new BlobServiceClient(
+      `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+      new DefaultAzureCredential(),
+    );
+  } else if (AZURE_STORAGE_CONNECTION_STRING) {
     cachedServiceClient = BlobServiceClient.fromConnectionString(
       AZURE_STORAGE_CONNECTION_STRING,
+    );
+  } else {
+    throw ApiError.internal(
+      "Azure Blob Storage is not configured (set AZURE_STORAGE_ACCOUNT_NAME for managed identity or AZURE_STORAGE_CONNECTION_STRING)",
     );
   }
   return cachedServiceClient;
@@ -75,7 +110,7 @@ function getServiceClient(): BlobServiceClient {
 async function getContainerClient(
   key: BlobContainerKey,
 ): Promise<ContainerClient> {
-  const client = getServiceClient().getContainerClient(CONTAINER_NAMES[key]);
+  const client = getServiceClient().getContainerClient(resolveContainerName(key));
   // No `access` option => private container. Reads go through generateReadSasUrl, never anonymous.
   await client.createIfNotExists();
   return client;
@@ -234,9 +269,20 @@ export class BlobStorageService {
   ): Promise<string> {
     const client = await getContainerClient(container);
     const blobClient = client.getBlockBlobClient(blobName);
+    const expiresOn = new Date(Date.now() + expiryMinutes * 60 * 1000);
+    if (AZURE_STORAGE_ACCOUNT_NAME) {
+      const startsOn = new Date(Date.now() - 5 * 60 * 1000);
+      const delegationKey = await getServiceClient().getUserDelegationKey(startsOn, expiresOn);
+      const signature = generateBlobSASQueryParameters(
+        { containerName: client.containerName, blobName, permissions: BlobSASPermissions.parse("r"), startsOn, expiresOn },
+        delegationKey,
+        AZURE_STORAGE_ACCOUNT_NAME,
+      ).toString();
+      return `${blobClient.url}?${signature}`;
+    }
     return blobClient.generateSasUrl({
       permissions: BlobSASPermissions.parse("r"),
-      expiresOn: new Date(Date.now() + expiryMinutes * 60 * 1000),
+      expiresOn,
     });
   }
 }

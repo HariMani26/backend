@@ -1,5 +1,82 @@
 # Backend
 
+## Azure Photo and File Storage
+
+Photos/thumbnails and generic files live in two dedicated **private** Blob
+containers on the same storage account. Set these values in the backend
+environment and restart the API:
+
+```dotenv
+AZURE_STORAGE_ACCOUNT_NAME=<your-storage-account-name>
+AZURE_STORAGE_CONTAINER_PHOTOS=photos
+AZURE_STORAGE_CONTAINER_FILES=files
+```
+
+The local environment already selects `photos` and `files` on the
+`materuploads2026` account. The first upload creates each container if it does
+not exist. File bytes go to Azure, while MongoDB's `uploadedfiles` collection
+stores ownership, category, blob and thumbnail names, original filename, MIME
+type, size, verification status, and timestamps. The existing photo/document
+upload controls need no frontend changes.
+
+Container routing by upload category:
+
+| Category (`type`) | Container |
+| --- | --- |
+| `profile-image`, `gallery`, `horoscope` (image), `chat-image` | `photos` |
+| `document`, `horoscope` (PDF/DOCX), `temp` | `files` |
+
+### Azure Setup
+
+1. Create a StorageV2 account in your Azure subscription and desired region.
+	Use Standard LRS unless your availability requirements need more redundancy.
+	Require HTTPS and TLS 1.2 or later, disable anonymous blob access, and
+	disable shared-key access so only Entra ID identities can authenticate.
+2. Create the two private containers (`photos`, `files`) with public access
+	set to `off`.
+3. Assign **Storage Blob Data Contributor** at the storage-account scope to
+	the backend's managed identity. For local development, assign the role to
+	your developer identity and sign in using a supported local Azure credential.
+	Account scope is needed to create containers and issue user-delegation keys.
+4. Set the three environment variables above. `DefaultAzureCredential` uses the
+	local developer identity or the Azure-hosted managed identity — no
+	connection string or account key is required or supported when
+	`AZURE_STORAGE_ACCOUNT_NAME` is set. Ensure network rules allow your backend
+	to access the account.
+5. Restart the backend and upload a photo and PDF through the app. Verify their
+	blobs in `photos`/`files` and their metadata in MongoDB. Reads use
+	short-lived, read-only user-delegation SAS URLs generated per request; never
+	make either container public to display photos or documents.
+
+An existing `AZURE_STORAGE_CONNECTION_STRING` remains supported only when
+`AZURE_STORAGE_ACCOUNT_NAME` is unset (e.g. Azurite/local emulator). Keep it
+only in a private environment or secret store, never in frontend code or
+source control. Account-name (managed identity) authentication always takes
+precedence over the connection string.
+
+A legacy `AZURE_STORAGE_CONTAINER_NAME` (single shared container) and the
+original per-category `AZURE_CONTAINER_*` variables remain supported as
+fallbacks, in that priority order, for deployments that have not migrated to
+the photos/files split. Do not change any of these container settings for an
+account with existing uploads until those blobs have been copied to the new
+container with their original blob names — changing it does not migrate blobs
+automatically.
+
+Run focused tests from this directory:
+
+```powershell
+npx jest src/services/blobStorage.service.spec.ts src/services/upload.integration.spec.ts --runInBand --coverage=false
+npm run typecheck
+```
+
+Storage tests mock Azure SDK calls. Persistence tests use a temporary MongoDB
+instance, not the application database. Live Azure access must be checked after
+the subscription, account, identity permissions, and environment are configured.
+
+References: [Azure JavaScript authentication](https://learn.microsoft.com/azure/developer/javascript/sdk/authentication/overview),
+[user-delegation SAS](https://learn.microsoft.com/azure/storage/blobs/storage-blob-create-user-delegation-sas-javascript),
+[Blob data roles](https://learn.microsoft.com/azure/storage/blobs/assign-azure-role-data-access).
+
 ## Local Screen Test Data
 
 Run from the workspace root:

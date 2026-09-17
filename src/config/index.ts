@@ -52,6 +52,15 @@ export const ADMIN_SEED_PASSWORD = process.env.ADMIN_SEED_PASSWORD;
 export const ADMIN_SEED_MOBILE = process.env.ADMIN_SEED_MOBILE;
 export const AZURE_STORAGE_CONNECTION_STRING =
   process.env.AZURE_STORAGE_CONNECTION_STRING;
+export const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+export const AZURE_STORAGE_CONTAINER_NAME =
+  process.env.AZURE_STORAGE_CONTAINER_NAME;
+// Two dedicated private containers: one for photos (profile/gallery/horoscope/chat images),
+// one for files (documents, temp). Takes precedence over AZURE_STORAGE_CONTAINER_NAME above.
+export const AZURE_STORAGE_CONTAINER_PHOTOS =
+  process.env.AZURE_STORAGE_CONTAINER_PHOTOS;
+export const AZURE_STORAGE_CONTAINER_FILES =
+  process.env.AZURE_STORAGE_CONTAINER_FILES;
 export const AZURE_CONTAINER_PROFILE_IMAGES =
   process.env.AZURE_CONTAINER_PROFILE_IMAGES;
 export const AZURE_CONTAINER_GALLERY = process.env.AZURE_CONTAINER_GALLERY;
