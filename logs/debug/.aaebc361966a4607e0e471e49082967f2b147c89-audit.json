@@ -9,6 +9,16 @@
             "date": 1784207600447,
             "name": "D:\\Mater\\backend\\logs\\debug\\2026-07-16.log",
             "hash": "2e9302449998f96d9922619330fe89490585228129f6299c6d52c3040613032b"
+        },
+        {
+            "date": 1784264847560,
+            "name": "D:\\Mater\\backend\\logs\\debug\\2026-07-17.log",
+            "hash": "dc108609de73f1378f25a2fc707fbae5e808726d4efff404ba698495a16e7cee"
+        },
+        {
+            "date": 1789627477692,
+            "name": "D:\\Mater\\backend\\logs\\debug\\2026-09-17.log",
+            "hash": "8a8051bc180f19c40d793cc883afa9e06af5cbc3a3550b617a2e3b527da3d390"
         }
     ],
     "hashType": "sha256"

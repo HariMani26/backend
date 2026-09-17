@@ -2,7 +2,6 @@ import { CREDENTIALS, LOG_FORMAT, NODE_ENV, ORIGIN } from "@config";
 import { dbConnection } from "@database";
 import { Routes } from "@interfaces/routes.interface";
 
-import { AuthMiddleware } from "@middlewares/auth.middleware";
 import { logger, stream } from "@utils/logger";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -19,6 +18,7 @@ import "reflect-metadata";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
+import { apiRouter } from "./routes";
 import {
   seedDistricts,
   seedKulamCompatibility,
@@ -38,7 +38,7 @@ export class App {
     this.port = Number(process.env.PORT) || 3000;
   }
 
-  public async init(routes: Routes[]) {
+  public async init(routes: Routes[] = [{ path: "", router: apiRouter }]) {
     await this.connectToDatabase();
     this.initializeMiddlewares();
     this.initializeSwagger();
@@ -135,23 +135,14 @@ export class App {
 
     this.app.use(hpp());
     this.app.use(compression());
+    this.app.use(['/api/payments/webhook', '/payments/webhook'], express.raw({ type: 'application/json', limit: '256kb' }));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cookieParser());
   }
 
   private initializeRoutes(routes: Routes[]) {
-    this.app.get("/health", (req, res) => {
-      res.status(200).send("OK");
-    });
-    this.app.get("/", (req, res) => {
-      res.status(200).send("OK");
-    });
-
-    // Initialize other routes
-    routes.forEach((route) => {
-      this.app.use("/", AuthMiddleware, route.router);
-    });
+    mountRoutes(this.app, routes);
   }
 
   private initializeSwagger() {
@@ -177,14 +168,23 @@ export class App {
 
 export function createApp(): express.Application {
   const app = express();
+  app.use(['/api/payments/webhook', '/payments/webhook'], express.raw({ type: 'application/json', limit: '256kb' }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.get("/api/health", (_req, res) => {
-    res.status(200).json({
-      success: true,
-      message: "Service healthy",
-      data: { status: "ok", timestamp: new Date().toISOString() },
-    });
+  mountRoutes(app, [{ path: "", router: apiRouter }]);
+  app.use(ErrorMiddleware);
+  return app;
+}
+
+function mountRoutes(app: express.Application, routes: Routes[]): void {
+  app.get("/", (_req, res) => {
+    res.status(200).send("OK");
+  });
+
+  routes.forEach((route) => {
+    const routePath = route.path ?? "";
+    app.use(`/api${routePath}`, route.router);
+    app.use(routePath || "/", route.router);
   });
 
   app.use((req, res) => {
@@ -195,5 +195,4 @@ export function createApp(): express.Application {
     });
   });
 
-  return app;
 }

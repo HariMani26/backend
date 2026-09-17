@@ -32,6 +32,7 @@ export const {
   OTP_RESEND_SECONDS = "30",
   OTP_BYPASS_ENABLED = "false",
   OTP_BYPASS_NUMBER = "",
+  OTP_BYPASS_NUMBERS = "",
   OTP_BYPASS_CODE = "",
 } = process.env;
 
@@ -46,18 +47,16 @@ export const {
 } = process.env;
 
 export const isProduction = process.env.NODE_ENV === "production";
-
-// OAuth providers
-export const { GOOGLE_CLIENT_ID = "", APPLE_CLIENT_ID = "" } = process.env;
-
-export const env: any = {
-  ...process.env,
-  MONGO_URI: process.env.MONGO_URI || MongoDB_URL || "",
-  API_BASE_PATH: process.env.API_BASE_PATH || "/api",
-  MEMBERSHIP_PRICE_INR: Number(process.env.MEMBERSHIP_PRICE_INR || "0"),
-  MEMBERSHIP_DURATION_DAYS: Number(
-    process.env.MEMBERSHIP_DURATION_DAYS || "30",
-  ),
-  GOOGLE_CLIENT_ID,
-  APPLE_CLIENT_ID,
-};
+export const ADMIN_SEED_EMAIL = process.env.ADMIN_SEED_EMAIL;
+export const ADMIN_SEED_PASSWORD = process.env.ADMIN_SEED_PASSWORD;
+export const ADMIN_SEED_MOBILE = process.env.ADMIN_SEED_MOBILE;
+export const AZURE_STORAGE_CONNECTION_STRING =
+  process.env.AZURE_STORAGE_CONNECTION_STRING;
+export const AZURE_CONTAINER_PROFILE_IMAGES =
+  process.env.AZURE_CONTAINER_PROFILE_IMAGES;
+export const AZURE_CONTAINER_GALLERY = process.env.AZURE_CONTAINER_GALLERY;
+export const AZURE_CONTAINER_HOROSCOPE = process.env.AZURE_CONTAINER_HOROSCOPE;
+export const AZURE_CONTAINER_DOCUMENTS = process.env.AZURE_CONTAINER_DOCUMENTS;
+export const AZURE_CONTAINER_CHAT_IMAGES =
+  process.env.AZURE_CONTAINER_CHAT_IMAGES;
+export const AZURE_CONTAINER_TEMP = process.env.AZURE_CONTAINER_TEMP;

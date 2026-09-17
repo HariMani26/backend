@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import { ApiError } from '@utils/ApiError';
 import { verifyAccessToken } from '@utils/jwt';
+import { UserModel, NOT_DELETED } from '@models/User.model';
 
 const getAuthorization = (req: Request): string | null => {
   const header = req.header('Authorization');
@@ -10,7 +11,7 @@ const getAuthorization = (req: Request): string | null => {
   return null;
 };
 
-export const AuthMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const AuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = getAuthorization(req);
     if (!token) {
@@ -18,7 +19,9 @@ export const AuthMiddleware = (req: Request, res: Response, next: NextFunction):
     }
 
     const payload = verifyAccessToken(token);
-    req.user = { id: payload.sub, role: payload.role };
+    const user = await UserModel.findOne({ _id: payload.sub, ...NOT_DELETED });
+    if (!user || !user.isActive) throw ApiError.unauthorized('Account not found or inactive');
+    req.user = { id: String(user._id), role: user.role };
     next();
   } catch {
     next(ApiError.unauthorized('Invalid or expired authentication token'));

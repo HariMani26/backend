@@ -1,6 +1,5 @@
+import { PORT } from "@/config";
 import swaggerJsdoc from "swagger-jsdoc";
-
-import { env } from "@config/env";
 
 const swaggerDefinition: swaggerJsdoc.OAS3Definition = {
   openapi: "3.0.0",
@@ -10,7 +9,7 @@ const swaggerDefinition: swaggerJsdoc.OAS3Definition = {
     description:
       "REST API for the WeOur Matrimony platform (Ionic Angular + Node/Express + MongoDB).",
   },
-  servers: [{ url: `http://localhost:${env.PORT}${env.API_BASE_PATH}` }],
+  servers: [{ url: `http://localhost:${PORT}` }],
   components: {
     securitySchemes: {
       bearerAuth: {

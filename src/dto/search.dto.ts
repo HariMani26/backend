@@ -19,7 +19,7 @@ import { z } from 'zod';
  */
 export const searchQuerySchema = z
   .object({
-    name: z.string().trim().min(1).optional(),
+    name: z.string().trim().min(1).max(100).optional(),
     gender: z.enum(['male', 'female']).optional(),
     state: z.string().trim().min(1).optional(),
     district: z.string().trim().min(1).optional(),

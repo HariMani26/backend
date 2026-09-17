@@ -2,9 +2,15 @@ import {
     IKulamCompatibility,
     KulamCompatibilityModel,
 } from "@models/KulamCompatibility.model";
+import { Container, Service } from "typedi";
 
-export const kulamCompatibilityService = {
-  async findAll(): Promise<IKulamCompatibility[]> {
+@Service()
+export class KulamCompatibilityService {
+  public async findAll(): Promise<IKulamCompatibility[]> {
     return KulamCompatibilityModel.find({}).lean();
-  },
-};
+  }
+}
+
+export const kulamCompatibilityService = Container.get(
+  KulamCompatibilityService,
+);

@@ -1,6 +1,5 @@
 /* eslint-disable no-console */
 
-import { env } from "@config/env";
 import { DistrictModel } from "@models/District.model";
 import { KulamModel } from "@models/Kulam.model";
 import { KulamCompatibilityModel } from "@models/KulamCompatibility.model";
@@ -135,15 +134,15 @@ export async function seedMembershipPlans(): Promise<void> {
   await MembershipPlanModel.updateOne(
     { name: "Standard" },
     {
-      $set: {
+      $setOnInsert: {
         name: "Standard",
-        priceInr: env.MEMBERSHIP_PRICE_INR,
-        durationDays: env.MEMBERSHIP_DURATION_DAYS,
+        priceInr: 20,
+        durationDays: 90,
         features: [
           "Full search access",
-          "View photos & contact details",
+          "View permitted photos and contact details after verification",
           "Send unlimited interests",
-          "WhatsApp chat after mutual interest",
+          "WhatsApp contact when shared by the member",
         ],
         isActive: true,
       },

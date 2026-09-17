@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { CreatorBase } from "./creatorBase.interface";
 
 export interface IUser extends CreatorBase {
+  preferences?: { showPhoto: boolean; showContact: boolean; emailNotifications: boolean };
   mobile: string;
   countryCode: string;
   email?: string;

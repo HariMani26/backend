@@ -114,17 +114,15 @@ export type ProfileDetail = ProfileSummary & {
 
 export function toProfileDetail(
   profile: HydratedDocument<IProfile>,
-  options: { hasFullAccess: boolean; photoUrls: string[] },
+  options: { hasFullAccess: boolean; photoUrls: string[]; showContact?: boolean },
 ): ProfileDetail {
-  const summary = toProfileSummary(profile, options.photoUrls[0]);
+  const summary = toProfileSummary(profile, options.hasFullAccess ? options.photoUrls[0] : undefined);
   const contactFields = options.hasFullAccess
     ? {
-        whatsapp: profile.whatsapp,
-        email: profile.email,
-        taluk: profile.taluk,
-        nativePlace: profile.nativePlace,
-        currentCountry: profile.currentCountry,
-        currentCity: profile.currentCity,
+        ...(options.showContact !== false ? {
+          whatsapp: profile.whatsapp, email: profile.email, taluk: profile.taluk,
+          nativePlace: profile.nativePlace, currentCountry: profile.currentCountry, currentCity: profile.currentCity,
+        } : {}),
         company: profile.company,
         annualIncome: profile.annualIncome,
         workLocation: profile.workLocation,

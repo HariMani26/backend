@@ -89,6 +89,7 @@ export interface IProfile {
   otherDetails?: string;
 
   verificationStatus: VerificationStatus;
+  previousVerificationStatus?: Exclude<VerificationStatus, 'suspended'>;
   verificationReason?: string;
   accessTill?: Date;
   primaryPhotoId?: Types.ObjectId;
@@ -193,6 +194,7 @@ const profileSchema = new Schema<IProfile>(
       index: true,
     },
     verificationReason: { type: String, trim: true },
+    previousVerificationStatus: { type: String, enum: ['unverified', 'verified', 'rejected', 'refunded'] },
     accessTill: { type: Date },
     primaryPhotoId: { type: Schema.Types.ObjectId, ref: 'UploadedFile' },
     profileViews: { type: Number, default: 0 },

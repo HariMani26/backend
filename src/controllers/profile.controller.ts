@@ -11,10 +11,19 @@ import { uploadedFileService } from "@services/uploadedFile.service";
 import { ApiError } from "@utils/ApiError";
 import { asyncHandler } from "@utils/asyncHandler";
 import { toProfileDetail, toPublicProfile } from "@utils/serializers";
+import { evaluateAccess } from '@services/access.service';
+import { UserModel } from '@models/User.model';
 
 const PHOTO_TYPES = ["profile-image", "gallery"] as const;
 
 export const profileController = {
+  browse: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as ProfileIdParams;
+    const profile = await profileService.findPublicById(id);
+    if (!profile) throw ApiError.notFound("Profile not found");
+    sendSuccess(res, toProfileDetail(profile, { hasFullAccess: false, photoUrls: [] }), "Profile preview");
+  }),
+
   me: asyncHandler(async (req: Request, res: Response) => {
     const profile = await profileService.findByUserId(req.user!.id);
     if (!profile) {
@@ -35,11 +44,17 @@ export const profileController = {
     const isOwnProfile = String(profile.userId) === req.user!.id;
     const isAdmin =
       req.user!.role === "admin" || req.user!.role === "superAdmin";
-    // No one else has "full access" yet — Subscriptions/payments (a later phase) don't exist, so
-    // hasPaidAccess is unconditionally false for everyone but the profile owner and admins.
-    const hasFullAccess = isOwnProfile || isAdmin;
+    if (!isOwnProfile && !isAdmin && (profile.marriageStatus.isMarried || !['verified', 'unverified'].includes(profile.verificationStatus))) {
+      throw ApiError.notFound('Profile not found');
+    }
+    const owner = await UserModel.findOne({ _id: profile.userId, isActive: true, isDeleted: { $ne: true } });
+    if (!owner) throw ApiError.notFound('Profile not found');
+    const viewer = isOwnProfile ? profile : await profileService.findByUserId(req.user!.id);
+    const hasFullAccess = isOwnProfile || evaluateAccess(viewer, req.user!.role).hasFullAccess;
+    const showContact = isOwnProfile || isAdmin || owner.preferences?.showContact === true;
+    const showPhoto = hasFullAccess && (isOwnProfile || isAdmin || owner.preferences?.showPhoto !== false);
 
-    const photoDocs = await uploadedFileService.findByUser(profile.userId);
+    const photoDocs = showPhoto ? await uploadedFileService.findByUser(profile.userId) : [];
     const photoFiles = photoDocs.filter((file) =>
       (PHOTO_TYPES as readonly string[]).includes(file.type),
     );
@@ -54,7 +69,7 @@ export const profileController = {
 
     sendSuccess(
       res,
-      toProfileDetail(profile, { hasFullAccess, photoUrls }),
+      toProfileDetail(profile, { hasFullAccess, photoUrls, showContact }),
       "Profile detail",
     );
   }),

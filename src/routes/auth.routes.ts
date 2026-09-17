@@ -3,6 +3,7 @@ import { Router } from "express";
 import { AuthController } from "@/controllers/auth.controller";
 import { Routes } from "@/interfaces/routes.interface";
 import { authRateLimiter } from "@middlewares/rateLimiter";
+import { authenticate } from "@middlewares/authenticate";
 import { asyncHandler } from "@utils/asyncHandler";
 import {
   validateAdminLogin,
@@ -22,6 +23,8 @@ export class AuthRoute implements Routes {
     this.initializeRoutes();
   }
   private initializeRoutes() {
+    this.router.get("/me", authenticate, asyncHandler(this.auth.me));
+
     this.router.post(
       "/otp/request",
       authRateLimiter,

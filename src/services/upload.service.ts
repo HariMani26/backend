@@ -5,6 +5,7 @@ import {
 } from "@services/blobStorage.service";
 import { uploadedFileService } from "@services/uploadedFile.service";
 import { ApiError } from "@utils/ApiError";
+import { Container, Service } from "typedi";
 
 const MAX_PHOTOS_PER_USER = 5;
 
@@ -42,8 +43,9 @@ async function assertPhotoQuotaAvailable(userId: string): Promise<void> {
   }
 }
 
-export const uploadService = {
-  async uploadPhoto(
+@Service()
+export class UploadService {
+  public async uploadPhoto(
     userId: string,
     type: "profile-image" | "gallery",
     file: IncomingFile,
@@ -73,9 +75,9 @@ export const uploadService = {
       sizeBytes: result.sizeBytes,
       isPrimary: type === "profile-image",
     });
-  },
+  }
 
-  async uploadHoroscope(
+  public async uploadHoroscope(
     userId: string,
     file: IncomingFile,
   ): Promise<IUploadedFile> {
@@ -107,9 +109,9 @@ export const uploadService = {
       sizeBytes: result.sizeBytes,
       isPrimary: false,
     });
-  },
+  }
 
-  async uploadDocument(
+  public async uploadDocument(
     userId: string,
     file: IncomingFile,
   ): Promise<IUploadedFile> {
@@ -131,9 +133,9 @@ export const uploadService = {
       sizeBytes: result.sizeBytes,
       isPrimary: false,
     });
-  },
+  }
 
-  async replaceFile(
+  public async replaceFile(
     userId: string,
     fileId: string,
     file: IncomingFile,
@@ -180,9 +182,9 @@ export const uploadService = {
       throw ApiError.notFound("File not found");
     }
     return updated;
-  },
+  }
 
-  async deleteFile(userId: string, fileId: string): Promise<void> {
+  public async deleteFile(userId: string, fileId: string): Promise<void> {
     const existing = await uploadedFileService.findById(fileId);
     if (!existing || String(existing.userId) !== userId) {
       throw ApiError.notFound("File not found");
@@ -198,9 +200,9 @@ export const uploadService = {
     }
 
     await uploadedFileService.softDelete(fileId);
-  },
+  }
 
-  async listUserPhotos(
+  public async listUserPhotos(
     userId: string,
   ): Promise<Array<IUploadedFile & { url: string; thumbnailUrl?: string }>> {
     const files = await uploadedFileService.findByUser(userId);
@@ -220,5 +222,7 @@ export const uploadService = {
         return Object.assign(fileDoc.toObject(), { url, thumbnailUrl });
       }),
     );
-  },
-};
+  }
+}
+
+export const uploadService = Container.get(UploadService);

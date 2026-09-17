@@ -1,6 +1,6 @@
 import { Schema, model } from 'mongoose';
 
-export type OtpPurpose = 'register' | 'login' | 'reset-password';
+export type OtpPurpose = 'register' | 'login' | 'reset-password' | 'delete-account';
 
 export interface IOtp {
   mobile: string;
@@ -17,7 +17,7 @@ export interface IOtp {
 const otpSchema = new Schema<IOtp>(
   {
     mobile: { type: String, required: true, trim: true, index: true },
-    purpose: { type: String, enum: ['register', 'login', 'reset-password'], required: true },
+    purpose: { type: String, enum: ['register', 'login', 'reset-password', 'delete-account'], required: true },
     codeHash: { type: String, required: true },
     expiresAt: { type: Date, required: true },
     attempts: { type: Number, default: 0 },

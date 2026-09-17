@@ -34,6 +34,11 @@ const UserSchema: Schema = new Schema(
     googleId: { type: String, sparse: true, unique: true },
     appleId: { type: String, sparse: true, unique: true },
     isActive: { type: Boolean, default: true },
+    preferences: {
+      showPhoto: { type: Boolean, default: true },
+      showContact: { type: Boolean, default: false },
+      emailNotifications: { type: Boolean, default: true },
+    },
     isPhoneVerified: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
     adminGrantedBy: { type: Schema.Types.ObjectId, ref: "User" },

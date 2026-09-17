@@ -5,6 +5,7 @@ import {
     UploadedFileModel,
     UploadedFileType,
 } from "@models/UploadedFile.model";
+import { Container, Service } from "typedi";
 
 const NOT_DELETED = { isDeleted: { $ne: true } };
 
@@ -20,22 +21,23 @@ export type CreateUploadedFileInput = Omit<Partial<IUploadedFile>, "userId"> & {
   userId: string | Types.ObjectId;
 };
 
-export const uploadedFileService = {
-  async findByUser(
+@Service()
+export class UploadedFileService {
+  public async findByUser(
     userId: string | Types.ObjectId,
   ): Promise<Array<HydratedDocument<IUploadedFile>>> {
     return UploadedFileModel.find({ userId, ...NOT_DELETED }).sort({
       createdAt: -1,
     });
-  },
+  }
 
-  async findManyByIds(
+  public async findManyByIds(
     ids: Types.ObjectId[],
   ): Promise<Array<HydratedDocument<IUploadedFile>>> {
     return UploadedFileModel.find({ _id: { $in: ids }, ...NOT_DELETED });
-  },
+  }
 
-  async countByUser(
+  public async countByUser(
     userId: string,
     types: UploadedFileType[],
   ): Promise<number> {
@@ -44,9 +46,9 @@ export const uploadedFileService = {
       type: { $in: types },
       ...NOT_DELETED,
     });
-  },
+  }
 
-  async unsetPrimaryForUser(
+  public async unsetPrimaryForUser(
     userId: string,
     type: UploadedFileType,
   ): Promise<void> {
@@ -54,9 +56,9 @@ export const uploadedFileService = {
       { userId: new Types.ObjectId(userId), type, ...NOT_DELETED },
       { $set: { isPrimary: false } },
     );
-  },
+  }
 
-  async create(
+  public async create(
     data: CreateUploadedFileInput,
   ): Promise<HydratedDocument<IUploadedFile>> {
     const normalized = {
@@ -67,15 +69,15 @@ export const uploadedFileService = {
           : data.userId,
     };
     return UploadedFileModel.create(normalized);
-  },
+  }
 
-  async findById(
+  public async findById(
     fileId: string,
   ): Promise<HydratedDocument<IUploadedFile> | null> {
     return UploadedFileModel.findOne({ _id: fileId, ...NOT_DELETED });
-  },
+  }
 
-  async replaceContent(
+  public async replaceContent(
     fileId: string,
     data: ReplaceFileContentInput,
   ): Promise<HydratedDocument<IUploadedFile> | null> {
@@ -84,12 +86,14 @@ export const uploadedFileService = {
       { $set: data },
       { new: true },
     );
-  },
+  }
 
-  async softDelete(fileId: string): Promise<void> {
+  public async softDelete(fileId: string): Promise<void> {
     await UploadedFileModel.updateOne(
       { _id: fileId, ...NOT_DELETED },
       { $set: { isDeleted: true, deletedAt: new Date() } },
     );
-  },
-};
+  }
+}
+
+export const uploadedFileService = Container.get(UploadedFileService);

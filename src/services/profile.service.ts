@@ -1,10 +1,12 @@
 import { FilterQuery, HydratedDocument, Types } from "mongoose";
 
 import { Gender, IProfile, ProfileModel } from "@models/Profile.model";
+import { Container, Service } from "typedi";
 
 const NOT_DELETED = { isDeleted: { $ne: true } };
 
 export interface ProfileSearchFilters {
+  publicOnly?: boolean;
   excludeUserId?: string;
   name?: string;
   gender?: Gender;
@@ -44,12 +46,18 @@ function buildSearchQuery(
   filters: ProfileSearchFilters,
 ): FilterQuery<IProfile> {
   const query: FilterQuery<IProfile> = { ...NOT_DELETED };
+  query["marriageStatus.isMarried"] = { $ne: true };
+
+  if (filters.publicOnly) {
+    query.verificationStatus = { $in: ["unverified", "verified"] };
+    query["marriageStatus.isMarried"] = { $ne: true };
+  }
 
   if (filters.excludeUserId) {
     query.userId = { $ne: new Types.ObjectId(filters.excludeUserId) };
   }
   if (filters.name) {
-    query.name = { $regex: filters.name, $options: "i" };
+    query.name = { $regex: filters.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
   }
   if (filters.gender) {
     query.gender = filters.gender;
@@ -72,51 +80,60 @@ function buildSearchQuery(
   return query;
 }
 
-export const profileService = {
-  async findByUserId(
+@Service()
+export class ProfileService {
+  public async findByUserId(
     userId: string,
   ): Promise<HydratedDocument<IProfile> | null> {
     return ProfileModel.findOne({
       userId: new Types.ObjectId(userId),
       ...NOT_DELETED,
     });
-  },
+  }
 
-  async findById(id: string): Promise<HydratedDocument<IProfile> | null> {
+  public async findById(
+    id: string,
+  ): Promise<HydratedDocument<IProfile> | null> {
     return ProfileModel.findOne({ _id: id, ...NOT_DELETED });
-  },
+  }
 
-  async countAll(): Promise<number> {
+  public async findPublicById(id: string): Promise<HydratedDocument<IProfile> | null> {
+    return ProfileModel.findOne({ _id: id, ...buildSearchQuery({ publicOnly: true }) });
+  }
+
+  public async countAll(): Promise<number> {
     return ProfileModel.countDocuments(NOT_DELETED);
-  },
+  }
 
-  async existsByReferenceId(referenceId: string): Promise<boolean> {
+  public async existsByReferenceId(referenceId: string): Promise<boolean> {
     const found = await ProfileModel.exists({ referenceId, ...NOT_DELETED });
     return Boolean(found);
-  },
+  }
 
-  async existsByUserId(userId: string): Promise<boolean> {
+  public async existsByUserId(userId: string): Promise<boolean> {
     const found = await ProfileModel.exists({
       userId: new Types.ObjectId(userId),
       ...NOT_DELETED,
     });
     return Boolean(found);
-  },
+  }
 
-  async create(input: CreateProfileInput): Promise<HydratedDocument<IProfile>> {
+  public async create(
+    input: CreateProfileInput,
+  ): Promise<HydratedDocument<IProfile>> {
     return ProfileModel.create(input);
-  },
+  }
 
-  async findCandidates(
+  public async findCandidates(
     filters: ProfileSearchFilters,
     limit: number,
   ): Promise<Array<HydratedDocument<IProfile>>> {
     return ProfileModel.find(buildSearchQuery(filters))
       .limit(limit)
       .sort({ createdAt: -1 });
-  },
+  }
 
-  async search(
+  public async search(
     filters: ProfileSearchFilters,
     page: number,
     limit: number,
@@ -135,5 +152,7 @@ export const profileService = {
     ]);
 
     return { items, total };
-  },
-};
+  }
+}
+
+export const profileService = Container.get(ProfileService);

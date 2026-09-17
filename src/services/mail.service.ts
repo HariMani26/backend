@@ -1,5 +1,6 @@
 import { logger } from "@/utils/logger";
 import { REMINDER_FROM_EMAIL, RESEND_API_KEY } from "@config";
+import { Container, Service } from "typedi";
 
 interface SendMailInput {
   to: string;
@@ -9,8 +10,9 @@ interface SendMailInput {
 }
 
 /** Resend-backed transactional email — mirrors the mechanism the Figma-source ReminderService documents for email. */
-export const mailService = {
-  async send(input: SendMailInput): Promise<void> {
+@Service()
+export class MailService {
+  public async send(input: SendMailInput): Promise<void> {
     if (!RESEND_API_KEY) {
       logger.warn(
         `[Mail mock mode] would send "${input.subject}" to ${input.to}`,
@@ -38,5 +40,7 @@ export const mailService = {
       logger.error(`Resend send failed (${response.status}): ${body}`);
       throw new Error("Failed to send email");
     }
-  },
-};
+  }
+}
+
+export const mailService = Container.get(MailService);

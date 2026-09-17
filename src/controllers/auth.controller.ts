@@ -15,6 +15,11 @@ function requestMeta(req: Request): RequestMeta {
 export class AuthController {
   private authService = Container.get(AuthService);
 
+  public me = async (req: Request, res: Response): Promise<void> => {
+    const user = await this.authService.getCurrentUser(req.user!.id);
+    sendSuccess(res, toPublicUser(user), "Current user");
+  };
+
   public requestOtp = async (req: Request, res: Response): Promise<void> => {
     await this.authService.requestOtp(req.body.mobile);
     sendSuccess(res, null, "OTP sent successfully");

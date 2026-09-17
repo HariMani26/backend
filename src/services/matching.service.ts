@@ -1,6 +1,7 @@
 import { IKulamCompatibility } from "@models/KulamCompatibility.model";
 import { Gender } from "@models/Profile.model";
 import { kulamCompatibilityService } from "@services/kulamCompatibility.service";
+import { Container, Service } from "typedi";
 
 /**
  * Multi-factor compatibility scoring, ported from the Figma reference's
@@ -261,14 +262,15 @@ function buildReasons(
   return reasons;
 }
 
-export const matchingService = {
+@Service()
+export class MatchingService {
   /** Loads the full compatibility matrix once — pass the result into `score()`/`rank()` for a batch of comparisons. */
-  async loadMatrix(): Promise<KulamCompatibilityMatrix> {
+  public async loadMatrix(): Promise<KulamCompatibilityMatrix> {
     const rows = await kulamCompatibilityService.findAll();
     return new Map(rows.map((row) => [row.kulam, row]));
-  },
+  }
 
-  score(
+  public score(
     subject: MatchSubject,
     target: MatchSubject,
     matrix: KulamCompatibilityMatrix,
@@ -307,5 +309,7 @@ export const matchingService = {
       ),
       compatibility: tierFromScore(totalScore),
     };
-  },
-};
+  }
+}
+
+export const matchingService = Container.get(MatchingService);

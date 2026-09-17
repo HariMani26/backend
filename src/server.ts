@@ -2,13 +2,8 @@ import { App } from "@/app";
 
 import { ValidateEnv } from "@utils/validateEnv";
 import { disconnect } from "mongoose";
-import { AuthRoute } from "./routes/auth.routes";
 
 ValidateEnv();
-
-const RouteClasses = [AuthRoute];
-
-const Routes = RouteClasses.map((RouteClass) => new RouteClass());
 
 const app = new App();
 let shuttingDown = false;
@@ -41,7 +36,7 @@ process.once("SIGTERM", () => {
 });
 
 app
-  .init(Routes)
+  .init()
   .then(() => {
     app.listen();
   })

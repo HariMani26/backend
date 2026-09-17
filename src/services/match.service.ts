@@ -13,6 +13,8 @@ import { ApiError } from "@utils/ApiError";
 import { calculateAge } from "@utils/age";
 import { resolvePrimaryPhotoUrls } from "@utils/profilePhotoUrls";
 import { ProfileSummary, toProfileSummary } from "@utils/serializers";
+import { Container, Service } from "typedi";
+import { evaluateAccess } from './access.service';
 
 const CANDIDATE_POOL_CAP = 200;
 const DEFAULT_TOP_MATCHES_LIMIT = 10;
@@ -35,9 +37,7 @@ function toMatchSubject(profile: HydratedDocument<IProfile>): MatchSubject {
   };
 }
 
-async function loadViewerContext(
-  viewerUserId: string,
-): Promise<{
+async function loadViewerContext(viewerUserId: string): Promise<{
   viewerProfile: HydratedDocument<IProfile>;
   preference?: MatchPreference;
 }> {
@@ -62,8 +62,9 @@ async function loadViewerContext(
   return { viewerProfile, preference };
 }
 
-export const matchService = {
-  async topMatches(
+@Service()
+export class MatchService {
+  public async topMatches(
     viewerUserId: string,
     limit = DEFAULT_TOP_MATCHES_LIMIT,
   ): Promise<Array<ProfileSummary & { matchScore: MatchScore }>> {
@@ -75,13 +76,15 @@ export const matchService = {
       profileService.findCandidates(
         {
           excludeUserId: viewerUserId,
+          publicOnly: true,
           gender: oppositeGender(viewerProfile.gender),
         },
         CANDIDATE_POOL_CAP,
       ),
     ]);
 
-    const photoUrlByFileId = await resolvePrimaryPhotoUrls(candidates);
+    const photoUrlByFileId = evaluateAccess(viewerProfile).hasFullAccess
+      ? await resolvePrimaryPhotoUrls(candidates) : new Map<string, string>();
     const subject = toMatchSubject(viewerProfile);
 
     return candidates
@@ -99,9 +102,9 @@ export const matchService = {
       })
       .sort((a, b) => b.matchScore.totalScore - a.matchScore.totalScore)
       .slice(0, cappedLimit);
-  },
+  }
 
-  async scoreAgainst(
+  public async scoreAgainst(
     viewerUserId: string,
     targetProfileId: string,
   ): Promise<MatchScore> {
@@ -119,5 +122,7 @@ export const matchService = {
       matrix,
       preference,
     );
-  },
-};
+  }
+}
+
+export const matchService = Container.get(MatchService);

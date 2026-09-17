@@ -4,20 +4,22 @@ import {
     IPartnerPreference,
     PartnerPreferenceModel,
 } from "@models/PartnerPreference.model";
+import { Container, Service } from "typedi";
 
 const NOT_DELETED = { isDeleted: { $ne: true } };
 
-export const partnerPreferenceService = {
-  async findByUserId(
+@Service()
+export class PartnerPreferenceService {
+  public async findByUserId(
     userId: string,
   ): Promise<HydratedDocument<IPartnerPreference> | null> {
     return PartnerPreferenceModel.findOne({
       userId: new Types.ObjectId(userId),
       ...NOT_DELETED,
     });
-  },
+  }
 
-  async upsertByUserId(
+  public async upsertByUserId(
     userId: string,
     data: Partial<IPartnerPreference>,
   ): Promise<HydratedDocument<IPartnerPreference>> {
@@ -45,5 +47,7 @@ export const partnerPreferenceService = {
       },
       { upsert: true, new: true },
     ) as Promise<HydratedDocument<IPartnerPreference>>;
-  },
-};
+  }
+}
+
+export const partnerPreferenceService = Container.get(PartnerPreferenceService);

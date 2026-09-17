@@ -26,6 +26,14 @@ function assertActive(user: HydratedDocument<IUser>): void {
 export class AuthService {
   constructor() {}
 
+  public async getCurrentUser(userId: string): Promise<HydratedDocument<IUser>> {
+    const user = await UserCollection.findOne({ _id: userId, ...NOT_DELETED });
+    if (!user || !user.isActive) {
+      throw ApiError.unauthorized("Account not found or inactive");
+    }
+    return user;
+  }
+
   public async requestOtp(mobile: string): Promise<void> {
     return otpService.sendOtp(mobile, "login");
   }

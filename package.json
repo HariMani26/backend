@@ -10,6 +10,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "seed:test-users": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register src/scripts/seedTestUsers.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "start": "npm run build && cross-env NODE_ENV=production node dist/server.js",
     "dev": "npm run typecheck && npm run build && cross-env NODE_ENV=development nodemon",
@@ -37,6 +38,7 @@
     "mongoose": "^8.24.1",
     "multer": "^2.2.0",
     "nanoid": "^3.3.16",
+    "razorpay": "^2.9.8",
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.35.3",
     "swagger-jsdoc": "^6.3.0",
@@ -65,6 +67,7 @@
     "eslint": "^9.34.0",
     "globals": "^16.3.0",
     "jest": "^30.0.5",
+    "mongodb-memory-server": "^10.4.3",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",

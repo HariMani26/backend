@@ -1,15 +1,15 @@
 /* eslint-disable no-console */
 
-import { env } from "@config/env";
+import {
+  ADMIN_SEED_EMAIL,
+  ADMIN_SEED_MOBILE,
+  ADMIN_SEED_PASSWORD,
+} from "@/config";
 import { UserModel } from "@models/User.model";
 import { hashSecret } from "@utils/password";
 
 async function run(): Promise<void> {
-  if (
-    !env.ADMIN_SEED_EMAIL ||
-    !env.ADMIN_SEED_PASSWORD ||
-    !env.ADMIN_SEED_MOBILE
-  ) {
+  if (!ADMIN_SEED_EMAIL || !ADMIN_SEED_PASSWORD || !ADMIN_SEED_MOBILE) {
     console.log(
       "ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD / ADMIN_SEED_MOBILE not set — skipping admin seed.",
     );
@@ -17,13 +17,13 @@ async function run(): Promise<void> {
   }
 
   try {
-    const passwordHash = await hashSecret(env.ADMIN_SEED_PASSWORD);
+    const passwordHash = await hashSecret(ADMIN_SEED_PASSWORD);
     await UserModel.findOneAndUpdate(
-      { email: env.ADMIN_SEED_EMAIL.toLowerCase() },
+      { email: ADMIN_SEED_EMAIL.toLowerCase() },
       {
         $set: {
-          email: env.ADMIN_SEED_EMAIL.toLowerCase(),
-          mobile: env.ADMIN_SEED_MOBILE,
+          email: ADMIN_SEED_EMAIL.toLowerCase(),
+          mobile: ADMIN_SEED_MOBILE,
           countryCode: "+91",
           passwordHash,
           role: "superAdmin",
@@ -33,7 +33,7 @@ async function run(): Promise<void> {
       },
       { upsert: true },
     );
-    console.log(`✅ Super-admin account ready for ${env.ADMIN_SEED_EMAIL}`);
+    console.log(`✅ Super-admin account ready for ${ADMIN_SEED_EMAIL}`);
   } catch (err) {
     console.error("Admin seed failed", err);
     throw err;

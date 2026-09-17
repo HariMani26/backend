@@ -1,6 +1,7 @@
 import { HydratedDocument, Types } from "mongoose";
 
 import { IProfile } from "@models/Profile.model";
+import { UserModel } from "@models/User.model";
 import {
     BlobContainerKey,
     blobStorageService,
@@ -18,7 +19,15 @@ export async function resolvePrimaryPhotoUrls(
     return new Map();
   }
 
-  const files = await uploadedFileService.findManyByIds(photoIds);
+  const owners = await UserModel.find({
+    _id: { $in: profiles.map((profile) => profile.userId) },
+    isActive: true, isDeleted: { $ne: true }, 'preferences.showPhoto': { $ne: false },
+  }).select('_id');
+  const allowedOwners = new Set(owners.map((owner) => String(owner._id)));
+  const files = (await uploadedFileService.findManyByIds(photoIds)).filter((file) =>
+    allowedOwners.has(String(file.userId)) && ['profile-image', 'gallery'].includes(file.type) &&
+    profiles.some((profile) => String(profile.userId) === String(file.userId) && String(profile.primaryPhotoId) === String(file._id)),
+  );
   const entries = await Promise.all(
     files.map(async (file) => {
       const container = file.container as BlobContainerKey;

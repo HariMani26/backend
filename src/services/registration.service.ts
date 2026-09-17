@@ -9,12 +9,13 @@ import { partnerPreferenceService } from "@services/partnerPreference.service";
 import { CreateProfileInput, profileService } from "@services/profile.service";
 import { registrationDraftService } from "@services/registrationDraft.service";
 import { ApiError } from "@utils/ApiError";
+import { Container, Service } from "typedi";
 
 const REFERENCE_ID_PREFIX = "WOM";
 const REFERENCE_ID_DIGITS = 5;
 const REFERENCE_ID_MAX_ATTEMPTS = 5;
 
-const QUICK_REGISTRATION_PLACEHOLDER_FIELDS = {
+export const QUICK_REGISTRATION_PLACEHOLDER_FIELDS = {
   heightCm: 160,
   maritalStatus: "never-married" as const,
   education: "Not specified",
@@ -29,7 +30,7 @@ function deriveProfileType(gender: "male" | "female"): ProfileType {
   return gender === "male" ? "groom" : "bride";
 }
 
-async function generateReferenceId(): Promise<string> {
+export async function generateReferenceId(): Promise<string> {
   const startingCount = await profileService.countAll();
 
   for (let attempt = 0; attempt < REFERENCE_ID_MAX_ATTEMPTS; attempt += 1) {
@@ -52,20 +53,21 @@ async function assertNotAlreadyRegistered(userId: string): Promise<void> {
   }
 }
 
-export const registrationService = {
-  async getDraft(userId: string): Promise<Record<string, unknown>> {
+@Service()
+export class RegistrationService {
+  public async getDraft(userId: string): Promise<Record<string, unknown>> {
     const draft = await registrationDraftService.findByUserId(userId);
     return draft?.data ?? {};
-  },
+  }
 
-  async saveDraft(
+  public async saveDraft(
     userId: string,
     data: Record<string, unknown>,
   ): Promise<void> {
     await registrationDraftService.upsert(userId, data);
-  },
+  }
 
-  async submitFull(
+  public async submitFull(
     userId: string,
     payload: FullRegistrationBody,
   ): Promise<HydratedDocument<IProfile>> {
@@ -87,9 +89,9 @@ export const registrationService = {
     await registrationDraftService.deleteByUserId(userId);
 
     return profile;
-  },
+  }
 
-  async submitQuick(
+  public async submitQuick(
     userId: string,
     payload: QuickRegistrationBody,
   ): Promise<HydratedDocument<IProfile>> {
@@ -124,5 +126,7 @@ export const registrationService = {
     await registrationDraftService.deleteByUserId(userId);
 
     return profile;
-  },
-};
+  }
+}
+
+export const registrationService = Container.get(RegistrationService);
